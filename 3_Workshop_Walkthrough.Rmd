@@ -3,7 +3,8 @@ title: "Geospatial Analysis and Visualization in R"
 author: "Tyler Hampton"
 date: "September 23, 2022"
 output:
-  html_document:
+    #github_document
+    html_document:
     toc: true
     toc_depth: 3
     number_sections: false
