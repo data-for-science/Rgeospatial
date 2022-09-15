@@ -655,7 +655,7 @@ tm_shape(forestBC)+
 
 
 ```{r landcover}
-cover = raster("data/canada_2015_land_cover/CAN_NALCMS_2015_v2_land_cover_100m/CAN_NALCMS_2015_v2_land_cover_ONTARIO_100m.tif")
+cover = raster("data/canada_2015_land_cover/CAN_NALCMS_2015_v2_land_cover_100m/landcover_SouthernOntario.tif")
 coverkey = read.csv("data/canada_2015_land_cover/land_cover_key.csv")
 
 rgb2hex <- function(r,g,b) rgb(r, g, b, maxColorValue = 255)
