@@ -7,7 +7,7 @@ date: '2022-09-23'
 
 # Setup
 
-```{r, warning=FALSE}
+```{r eval=FALSE, warning=FALSE}
 loadpackages=function(packages){  for(p in packages){
   if(!require(p,character.only=T)){install.packages(p)}
   library(p,character.only=T,quietly=T,verbose=F)}}
@@ -50,15 +50,15 @@ https://science.ebird.org/en/status-and-trends
 You need an access key to access eBird data:
 https://science.ebird.org/en/status-and-trends/download-data
 
-```{r include=FALSE, eval=FALSE}
-set_ebirdst_access_key("1c76s7lopj62")
+```{r eval=FALSE}
+set_ebirdst_access_key()
 ```
 
 
 The "ebirdst" package interfaces with the eBird API to download data directly to your computer and load into R.
 https://cornelllabofornithology.github.io/ebirdst/index.html
 
-```{r}
+```{r eval=FALSE}
 #?ebirdst
 
 # where ebirdst will store data
@@ -76,7 +76,7 @@ ebirdst_download(species = "boboli",tifs_only=TRUE,show_progress = FALSE)
 ```
 
 
-```{r, eval=FALSE}
+```{r eval=FALSE}
 blue = load_raster(path=file.path(path,"2020/easblu"),product="occurrence",period="full-year",resolution = "hr")
 bobo = load_raster(path=file.path(path,"2020/boboli"),product="occurrence",period="full-year",resolution = "hr")
 
@@ -103,7 +103,7 @@ Study authors: 	Sorais M., Patenaude-Monette M., Sharp C., Askren R., LaRocque A
 "North-East American Canada goose migration"
 https://www.movebank.org/cms/webapp?gwt_fragment=page=studies,path=study2105214573
 
-```{r, eval=FALSE}
+```{r eval=FALSE}
 dat = st_read("C:/Users/Tyler/Downloads/North-East American Canada goose migration/points.shp")
 line = st_read("C:/Users/Tyler/Downloads/North-East American Canada goose migration/lines.shp")
 
@@ -116,7 +116,7 @@ st_write(line355,"data/MoveBank/North-East American Canada goose migration/s8946
 ```
 
 
-```{r}
+```{r eval=FALSE}
 line355 = st_read("data/MoveBank/North-East American Canada goose migration/s89460800120046875355_line.shp")
 dat355 = st_read("data/MoveBank/North-East American Canada goose migration/s89460800120046875355_point.shp")
 
@@ -127,7 +127,7 @@ dat355 <- dat355 %>%
            Yaea = unlist(map(dat355$geometry,2)))
 ```
 
-```{r}
+```{r eval=FALSE}
   
 ggplot(data=dat355,aes(x=long,y=lat))+
   geom_point(col="gray")+
@@ -157,7 +157,7 @@ The "spatialeco" package has many useful tools for conducting Spatial Ecology re
 https://cran.r-project.org/web/packages/spatialEco/spatialEco.pdf
 
 
-```{r}
+```{r eval=FALSE}
 dat355u = as.data.frame(dat355) %>% subset(select=-c(geometry))
 coordinates(dat355u) <- ~long+lat
 
