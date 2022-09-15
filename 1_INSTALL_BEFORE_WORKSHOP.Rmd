@@ -1,0 +1,49 @@
+---
+title: "INSTALL BEFORE WORKSHOP"
+author: "Tyler Hampton"
+date: "September 23, 2022"
+output:
+  html_document: default
+  #pdf_document: default
+---
+
+# Update RStudio and R
+
+Be sure to be running the newest version of RStudio ("2022.07.1+554")
+
+Be sure to be running R version 4.2 or greater.
+
+https://bootstrappers.umassmed.edu/bootstrappers-courses/courses/rCourse/Additional_Resources/Updating_R.html
+
+https://www.linkedin.com/pulse/3-methods-update-r-rstudio-windows-mac-woratana-ngarmtrakulchol/
+
+
+# Install or Update Packages 
+In order to equip R with functionality for gis data, we need to load or install several packages. Because this is an intermediate+ workshop, I have code written in sometimes complicated formats, but I will do my best to explain what I am doing. There are many ways to do the same thing in R. Similarly, there are many different packages in R that can handle the same types of data. We will use the pairing of the *ggplot2* and *sf* packages. We'll load several other packages we'll use. In particular, the *spData* package contains lots of open-source geospatial data that we can use! For the most current version, we need to access the github code repository for *spDataLarge*. A list of data is here: https://cran.r-project.org/web/packages/spData/spData.pdf
+```{r setup2,eval=FALSE}
+#this is a custom function that that can load multiple packages at once
+loadpackages=function(packages){  for(p in packages){
+  if(!require(p,character.only=T)){install.packages(p)}
+  # IF require returns FALSE, the package is missing and will be installed
+  library(p,character.only=T,quietly=T,verbose=F)}} # next, it calls the package with library
+
+loadpackages(c(
+           "devtools","data.table","ggplot2",
+           "sf","ggsn","raster","rgdal",
+           "ggrepel","maptools","mapview",
+           "plyr", #the split-apply-combine paradigm
+           "dplyr", # a grammar of data manipulation
+           "tmap", # Thematic Map Visualization
+           "purrr", # Functional Programming Tools
+           "spData", # Spatial Datasets
+           "RStoolbox", # A Collection of Remote Sensing Tools
+           "rasterVis", # Visualization Methods for Raster Data
+           "leaflet", # Create a Leaflet map widget
+           "magick" # Image Processing
+           ))
+
+if(!require("spDataLarge",character.only=T)){devtools::install_github("Nowosad/spDataLarge")}
+# devtools::install_github installs a package from its github directory
+
+# set a file string as your directory to save coding space later
+```

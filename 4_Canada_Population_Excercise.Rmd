@@ -1,0 +1,370 @@
+---
+title: "Advanced Vector Excercise: Canadian Population"
+author: "Tyler Hampton"
+date: "September 23, 2022"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: false
+    theme: united
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=5, fig.height=4, warning=FALSE, echo = TRUE)
+```
+
+
+```{r setup2,message=FALSE}
+#this is a custom function that that can load multiple packages at once
+loadpackages=function(packages){  for(p in packages){
+  if(!require(p,character.only=T)){install.packages(p)}
+  # IF require returns FALSE, the package is missing and will be installed
+  library(p,character.only=T,quietly=T,verbose=F)}} # next, it calls the package with library
+
+loadpackages(c(
+           "ggplot2", # Makes ggplots!
+           "sf",   # "Simple Features", handles vector data
+           "raster", # For working with Raster Data
+           "rgdal", # 'Geospatial' Data Abstraction Library
+                    # note: rgdal will be retired by the end of 2023
+           "tmap", # Thematic Map Visualization
+           "ggsn", # Several scale bars for maps
+           "ggrepel", # Labels on ggplots
+           "maptools", # Manipulating geographic data
+                      # note: maptools will be retired by the end of 2023
+           "plyr", # The split-apply-combine paradigm
+           "data.table", # Works with data.frames
+           "dplyr", # Data manipulation
+           "purrr", # Functional Programming Tools
+           "devtools", # Download custom R packages
+           "spData" # Spatial Datasets
+           ))
+
+if(!require("spDataLarge",character.only=T)){devtools::install_github("Nowosad/spDataLarge")}
+# devtools::install_github installs a package from its github directory
+```
+
+# Advanced Vector Excercise: Canadian Population
+
+In the main workshop, we used tools like dim and head to examine how R reads in and interprets geospatial data. Much like we operate on regular dataframes, we used tools like subset, aggregate, left_join, and setorder to manipulate shapefiles. Most importantly, we saw how shapefiles are different than dataframes in that they contain coordinate data that is in some coordinate system. In order to make a map, we need to ensure that all our data are in the same coordinate reference system (CRS). We used st_crs to confirm this, and st_transform to re-project data into difference CRSs. 
+
+In this next section, we will practice many of the same skills, but with new kinds of data (points). As well, we will practice geospatial unions, intersections, and clippings. We'll also learn how to create our own shapefiles from raw data.
+
+## Read Canada Census Data
+
+```{r read Canada Census data}
+CensusDat=read.csv("data/CanadaCensusData.csv")
+
+Proj_AEA_Can=c("+proj=aea +lat_1=50 +lat_2=70 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 ",
+       "+ellps=GRS80 +datum=NAD83 +units=m +no_defs")%>%paste0(.,collapse = "")
+# Canada Albers Equal Area Conic Projection
+# visit http://spatialreference.org/ref/esri/canada-albers-equal-area-conic/proj4/
+
+data("world")
+CanadaAEA=world%>%
+  subset(.,name_long=="Canada")%>%
+  st_transform(.,Proj_AEA_Can)
+
+
+# Canada Census Tract Shapefile
+CanadaCensus=st_read("data/CanadaCensusShapes/gcd_000e11a_e.shp",quiet=T)%>%
+  st_transform(.,Proj_AEA_Can)
+
+# Canadian Cities
+CAcities=st_read("data/worldcities/ne_10m_populated_places_simple.shp",quiet=T)%>%
+  st_transform(.,Proj_AEA_Can) %>% 
+  subset(.,megacity==1 & sov0name=="Canada") %>%
+  cbind(.,st_coordinates(st_centroid(.)))
+```
+
+## Inspect the Canadian Census data from 2016.
+
+We see that population within census divisions is log-normally distributed.
+We can also confirm that the population density calculations within each census division match the population and area values.
+The population of Canada in 2016 was 35.2 million people.
+
+```{r CAcensus,message=FALSE,warning=FALSE}
+ggplot(data=CensusDat)+
+  geom_histogram(aes(x=Population..2016))+
+  scale_x_log10()
+
+# Confirm that Population Density calculations match areas
+ggplot(data=CensusDat)+
+  geom_point(aes(y=Population..2016,
+                 x=Land.area.in.square.kilometres..2016*
+                   Population.density.per.square.kilometre..2016))+
+  geom_abline(intercept=0,slope=1)
+
+print(paste(round(sum(CensusDat$Population..2016,na.rm=TRUE)*10^-6,1),"million people"))
+
+```
+
+
+## Join Data to Census Shapefiles
+
+```{r join Canada Census}
+CanadaCensus = CanadaCensus %>%
+  dplyr::left_join(.,CensusDat,by=c("CDUID"="Geographic.code"))
+  
+```
+
+
+## Practice Map Making
+
+The census shapefiles do not come loaded with data, but we can use *left_join* from dplyr to join the data into the new shapefile. We'll do this join inside a pipe, after reading in the data and transforming it. One more layer to add: some major Canadian cities. The cities dataset conviniently comes with latitude and longitude, but we need to project these data separate from the feature geometries with *st_transform*. Similar to how we got points to label coffee-producing countries with we will "bind" point coordinates to the original layer.
+
+When we go to construct a map, we can "layer" our shapefiles from bottom (first) to top (last) in ggplot. *geom_label_repel* is a great function for making sure our city labels don't overlap. Finally, add a map title, north arrow, and scale bar.
+
+```{r CanMap,message=FALSE,warning=FALSE}
+basemap=ggplot()+
+  geom_sf(data=world %>%subset(.,subregion=="Northern America")%>%st_transform(.,Proj_AEA_Can),fill="white")+
+  ggtitle("Canada Census Divisions")+
+  blank()+
+  ggsn::north(CanadaCensus,symbol = 3,scale=0.2)+
+  ggsn::scalebar(CanadaCensus, dist = 1000, dist_unit = "km",
+           transform = FALSE,location = "bottomleft",st.size = 3)
+basemap+
+  geom_sf(data=CanadaCensus)+
+  geom_sf(data=CAcities,size=2)+
+  geom_label_repel(data=CAcities,
+                   aes(X,Y,label=name),
+                   segment.size = 1,
+                   nudge_y = 10,
+                   box.padding = 0.5
+                   )+
+  coord_sf(xlim = extent(CanadaCensus)[1:2],ylim = extent(CanadaCensus)[3:4])
+```
+
+Next, we'll practice visualizing the data within the census data.
+
+```{r CanMap2}
+basemap+
+  geom_sf(data=CanadaCensus,aes(fill=log10(Population.density.per.square.kilometre..2016)),
+          col="transparent")+
+  scale_fill_gradient(name=expression(paste("Population ",km^-2)),
+                      low="darkblue",high="red",na.value="darkblue",
+                      limits=c(-1.2,3.5),breaks=c(-1:3),labels=(10^c(-1:3)))+
+  geom_point(data=CAcities,aes(x=X,y=Y,size=pop_max))+
+  coord_sf(xlim = extent(CanadaCensus)[1:2],ylim = extent(CanadaCensus)[3:4])
+```
+
+## Aggregating Shapefiles
+
+Our census data didn't come with a shapefile of the Canadian provinces, but we can make our own! Notice, there is a column specifying the province for each census tract. If we can group all like tracts together, we can make a shapefile of each province. We'll use tools from dplyr to do this.
+
+```{r CAprovinces}
+names(CanadaCensus)[1:13]
+# we want to group shapes by the column: "Province...territory..english"
+Provinces=CanadaCensus%>%
+  dplyr::group_by(Province...territory..english)%>%
+  dplyr::summarize()
+ggplot()+geom_sf(data=Provinces,col=1,fill="white")
+```
+
+If you inspect the provinces data, we've lost all the census data and are left with only the geometry. If we want to reattach some data from the census, we can use *aggregate* and *left_join*.
+```{r CAprovinces2}
+head(Provinces)
+Provinces=Provinces%>%left_join(.,
+            CensusDat[,"Population..2016"]%>%
+              aggregate(by=list(CensusDat$Province...territory..english),FUN="sum")%>%
+              setNames(.,c("Province","Pop16")),
+            by=c("Province...territory..english"="Province")
+          )
+```
+
+
+
+```{r}
+
+ggplot()+
+  geom_sf(data=world%>%
+            subset(subregion=="Northern America")%>%
+            st_transform(.,Proj_AEA_Can),
+          alpha=0.5)+
+  geom_sf(data=Provinces,aes(fill=log10(Pop16)))+
+  scale_fill_gradient(name="Population ",low="darkblue",high="red",na.value="darkblue",
+                      limits=c(4.5,7.5),breaks=c(5:7),labels=(10^c(5:7)))+
+  coord_sf(xlim = extent(CanadaCensus)[1:2],ylim = extent(CanadaCensus)[3:4])+
+  ggtitle("Canada Census Divisions")+
+  blank()+
+  north(CanadaAEA,symbol = 3,scale=0.2)+
+  ggsn::scalebar(CanadaAEA, dist = 1000, dist_unit = "km",
+           transform = FALSE,location = "bottomleft",st.size = 3)
+```
+
+### More Practice Mapmaking
+
+Replicate the following map.
+
+```{r}
+Ontario=subset(Provinces,Province...territory..english=="Ontario")
+ggplot()+
+  geom_sf(data=Ontario,lwd=3,fill="transparent")+
+  geom_sf(data=subset(CanadaCensus,Province...territory..english=="Ontario"),
+          aes(fill=log10(Population.density.per.square.kilometre..2016)),
+          col="transparent")+
+  scale_fill_gradient(name=expression(paste("Population ",km^-2)),
+                      low="darkblue",high="red",na.value="darkblue",
+                      limits=c(0.5,3.5),breaks=c(1:3),labels=(10^c(1:3)))+
+  coord_sf(xlim = extent(Ontario)[1:2],ylim = extent(Ontario)[3:4])+
+  ggtitle("Canada Census Divisions")+
+  blank()+
+  north(Ontario,symbol = 3,scale=0.2)
+```
+```{r writeOntario}
+#st_write(obj = Ontario,"data/CanadaCensusShapes/Canada_provinces_Ontario.shp",append=FALSE)
+```
+
+## Answer a popular question: What percent of Canadians live within 100 miles of the US border?
+
+### Create a buffer
+
+*st_crs* tells us that the units of our map is in meters, so we need to convert from miles. We will transform a USA shapefile to the appropriate projection, then use st_buffer to create the buffered shape.
+
+```{r buffer,message=FALSE,warning=FALSE}
+USA=world%>%
+  subset(.,name_long=="United States")%>%
+  st_transform(.,Proj_AEA_Can)
+st_crs(USA)$units
+USA_buf=st_buffer(USA,dist=160934) # 100 miles = 160934 meters
+ggplot()+
+  geom_sf(data=USA,fill="gray",col="transparent")+
+  geom_sf(data=USA_buf,fill="transparent",col=2)+
+  ggtitle("US Border and 100 mile buffer")
+```
+
+
+```{r buffermap}
+ggplot()+
+  geom_sf(data=world%>%
+            subset(subregion=="Northern America")%>%
+            st_transform(.,Proj_AEA_Can),
+          col=0)+
+  geom_sf(data=CanadaCensus,
+          aes(fill=log10(Population.density.per.square.kilometre..2016)),
+          col="transparent")+
+  geom_sf(data=USA_buf,col=2,fill="transparent")+blank()+
+  geom_point(data=CAcities,aes(x=X,y=Y,size=pop_max))+
+  coord_sf(xlim = extent(CanadaCensus)[1:2],ylim = extent(CanadaCensus)[3:4])+
+  ggtitle("Canadian Census Divisions and Population Density")+
+  scale_fill_gradient(name=expression(paste("Population ",km^-2)),
+                      low="darkblue",high="red",na.value="darkblue",
+                      limits=c(-1.2,3.5),breaks=c(-1:3),labels=(10^c(-1:3)))
+```
+
+We can see that the region within 100 miles of the US border is highly populated, but there are cities like Calgary, Edmonton, Halifax, and Saskatoon that are north of this boundary. 
+
+### Use st_intersection to extract census tracts
+
+We use st_intersection to intersect the buffered US border polygon and Canadian census tracts. We make the assumption that population is evenly distributed within census divisions, allowing us to adjust the size of intersected tracts for their new clipped size. Inspecting their new calculated areas, we see that many tracts are completely within the 100 mile buffer, but others have a much lower area.
+
+```{r census2,message=FALSE,warning=FALSE}
+intersect=st_intersection(
+  CanadaCensus,
+  USA_buf
+  )%>%
+  mutate(area_km2 = st_area(.) %>% # calculate new shape areas
+           as.numeric()*(1000^-2) # convert from sq m to sq km
+         )
+ggplot(data=intersect)+
+  geom_point(aes(y=area_km2,x=Land.area.in.square.kilometres..2016))+
+  scale_y_log10()+scale_x_log10()+
+  geom_abline(intercept=0,slope=1)
+```
+
+We recalculate a portion of the census tract population living only within the portion within the 100 mile buffer. 
+Our final calculation finds that 27.3 million people live within 100 miles of the US border, or 77.6% of the population.
+When we plot the intersect shapefile, we see that we've actually clipped the census divisions to align with the border, like the center of a Venn Diagram.
+
+```{r finalCanMap}
+intersect$pop_2016_intersect=intersect$area_km2*
+  intersect$Population.density.per.square.kilometre..2016
+paste0(round(sum(intersect$pop_2016_intersect)*10^-6,1)," million people")
+print(paste0(round(100*sum(intersect$pop_2016_intersect,na.rm=TRUE)/
+                     sum(CensusDat$Population..2016,na.rm=TRUE),1),
+             "% of population within 100 miles of the US border"))
+
+plot=ggplot()+
+  geom_sf(data=CanadaCensus,fill="gray",col="transparent")+
+  geom_sf(data=intersect,
+          aes(fill=log10(Population.density.per.square.kilometre..2016)),
+          col="transparent")+
+  geom_sf(data=Provinces,fill="transparent",col=1)+
+  ggtitle("Population of Canada within 100 miles of the US border")+
+  scale_fill_gradient(name=expression(paste("Population ",km^-2)),
+                      low="darkblue",high="red",na.value="darkblue",
+                      limits=c(-1.2,3.5),breaks=c(-1:3),labels=(10^c(-1:3)))+
+  blank()+north(CanadaAEA,symbol = 3,scale=0.2)+
+  ggsn::scalebar(CanadaAEA, dist = 1000, dist_unit = "km",
+           transform = FALSE,location = "bottomleft",st.size = 3)
+ggsave(plot,filename = "outputs/BufferPopDens.png",
+       width = 5,height=4,dpi=300,units="in")
+plot
+```
+
+## What about Canada's population in relation to some US city? Seattle?
+
+We'll practice creating a new shapefile from scratch. We'll create a data.frame describing points along a box with its top edge at 47.6 degrees north: the coordinates of Seattle. Then we'll use functions from the sf package to convert the dataframe into a shapefile
+
+### Create a new shapefile
+
+To create a point shapefile, we feed our coordinates (always x first, or longitude) to a dataframe, and then to st_as_sf, specifying the CRS as longitude and latitude (4326). More complicated, for a polygon, we want to create 4 lines of a box that will form below the latitude of Seattle. If we examine df, we see that we've created a sequence of points rotating clockwise around this box, with the final point repeated from the first row, as indicated by the arrows.
+
+```{r createshapefile}
+seattle.point=data.frame(lon=-122.33,lat=47.6) %>%
+  st_as_sf(.,coords=names(.),crs = 4326) %>% 
+  st_transform(.,Proj_AEA_Can)
+
+lon=seq(-140,-45,2)
+df=data.frame(
+  lon=c(lon,rev(lon)),
+  lat=c(rep(c(47.6,30),each=length(lon)))) %>%
+  rbind(., .[1,])
+
+ggplot(data=df,aes(x=lon,y=lat))+
+  geom_path(arrow=arrow(ends="both",type = "closed"))+geom_point()
+```
+
+Next, we need to feed df to a complex sequence of equations, but most importantly at the end we see us defining the CRS as latlong, and then transforming the data to Canada Albers. With the map we see the importance of specifying many points along the top of the box, to achieve the curved shape of a single latitude band, while the vertical (N->S) lines stay straight.
+
+```{r creatshapefile2}
+seattle=df %>% 
+  as.matrix()%>%
+  list()%>%
+  st_polygon()%>%
+  st_sfc()%>%
+  st_sf(., crs = 4326)%>%
+  st_transform(.,Proj_AEA_Can)
+
+ggplot()+geom_sf(data=USA)+geom_sf(data=seattle,col=2,fill="transparent")
+```
+
+### Calculate
+
+```{r CApopSeattle,message=FALSE,warning=FALSE}
+
+intersect=st_intersection(seattle,CanadaCensus)%>%
+  mutate(area_km2 = st_area(.) %>% as.numeric()*1000^-2)
+intersect$pop_2016_intersect=intersect$area_km2*
+  intersect$Population.density.per.square.kilometre..2016
+paste0(round(sum(intersect$pop_2016_intersect)*10^-6,1)," million people")
+print(paste0(round(100*sum(intersect$pop_2016_intersect,na.rm=TRUE)/
+                     sum(CensusDat$Population..2016,na.rm=TRUE),1),
+             "% of population south of Seattle, Washington State"))
+
+ggplot()+
+  geom_sf(data=CanadaCensus,fill="gray",col="transparent")+
+  geom_sf(data=intersect,
+          aes(fill=log10(Population.density.per.square.kilometre..2016)),
+          col="transparent")+
+  geom_sf(data=seattle,col=2,fill="transparent")+
+  geom_sf(data=Provinces,fill="transparent",col=1)+
+  coord_sf(xlim = extent(CanadaCensus)[1:2],ylim = extent(CanadaCensus)[3:4])+
+  ggtitle("Population of Canada south of Seattle, Washington")+
+  scale_fill_gradient(name=expression(paste("Population ",km^-2)),
+                      low="darkblue",high="red",na.value="darkblue",
+                      limits=c(-1.2,3.5),breaks=c(-1:3),labels=(10^c(-1:3)))+
+  blank()
+```
+
