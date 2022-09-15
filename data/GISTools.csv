@@ -1,0 +1,10 @@
+﻿Function,Information,Spatial Extent,Data Type
+Union,Increase,Increase,Same
+Merge,Increase,Increase,Same
+Join,Increase,-,Different
+Dissolve,Decrease,-,-
+Buffer,-,Increase,-
+Intersect,-,Decrease,Same
+Clip/Mask,-,Decrease,Same or Different
+Subset,Decrease,Decrease,-
+Extract,Decrease,Erase,-
