@@ -1,3 +1,5 @@
+#Email Tyler: tyler.hampton@uwaterloo.ca
+
 loadpackages=function(packages){  for(p in packages){
   if(!require(p,character.only=T)){install.packages(p)}
   # IF require returns FALSE, the package is missing and will be installed
