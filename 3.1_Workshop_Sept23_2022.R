@@ -1,4 +1,5 @@
 #Email Tyler: tyler.hampton@uwaterloo.ca
+# Workshop Walkthrough September 23, 2022
 
 loadpackages=function(packages){  for(p in packages){
   if(!require(p,character.only=T)){install.packages(p)}
