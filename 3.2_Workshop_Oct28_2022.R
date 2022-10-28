@@ -1,5 +1,6 @@
 #Email Tyler: tyler.hampton@uwaterloo.ca
 # Workshop Walkthrough October 28, 2022
+# Workshop jamboard https://jamboard.google.com/d/1aXCueccoBW81wtVrWvNYl2seoWBao-OZfRIYbQQiu-8/edit?usp=sharing
 
 loadpackages=function(packages){  for(p in packages){
   if(!require(p,character.only=T)){install.packages(p)}
