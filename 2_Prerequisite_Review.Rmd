@@ -1,24 +1,29 @@
 ---
 title: "Geospatial Analysis and Visualization in R"
 author: "Tyler Hampton"
-date: "September 23, 2022"
 output:
-  html_document:
-  #pdf_document: 
+  github_document:
     toc: true
     toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
     number_sections: FALSE  ## if you want number sections at each table header
-    theme: united  # many options for theme, this one is my favorite.
 ---
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(fig.width=5, fig.height=4, warning=FALSE, echo = TRUE)
+knitr::opts_chunk$set(
+  fig.path = "images/",
+  fig.width=5,
+  fig.height=4,
+  warning=FALSE,
+  echo = TRUE)
 ```
+
 
 # GIS with R Tutorial - PREREQUISITES
 
 This document will provide an overview of a few important components of this GIS workshop. This document will not use any GIS functions or operations, but it will be based on a summary statistic dataset of world countries, that comes in the form of a geospatial object. 
 
 Key functions for you to know:
+
 * ggplot2
 * aggregate
 * "the pipe"

@@ -94,8 +94,8 @@ In this workshop, in addition to making several maps, we'll cover several basic 
 
 Visualizations of geospatial operations are helpful, but many of the differences between tools reflect how they handle *information* related to the shapes we see. Tools can be regarded as *adding* or *subtracting* information, complexity, and spatial extent. I've provided a table below describing how these tools manipulate data. We will refer to these tools throughout the workshop.
 
-```{r show table,echo=FALSE,results="asis"}
-knitr::kable(read.csv("data/GISTools.csv"))
+```{r show table1,echo=FALSE,results="asis"}
+knitr::kable(read.csv("images/GISTools.csv"))
 ```
 
 Let's get started!
@@ -370,8 +370,8 @@ tm_shape(CanadaAEA)+
 
 Let's review the geospatial operations discussed at the beginning of our workshop.
 
-```{r show table,echo=FALSE,results="asis"}
-knitr::kable(read.csv("Lectures_and_Slides/images/GISTools.csv"))
+```{r show table2,echo=FALSE,results="asis"}
+knitr::kable(read.csv("images/GISTools.csv"))
 ```
 
 We jumped right in and starting doing subsets, partly because we saw that vector shapefiles in R behave and can be manipulated similarly to data frames. The other operations mostly have functions that come from the geospatial packages (e.g. sf, raster, terra, stars). 
@@ -1026,9 +1026,9 @@ tm_shape(biomassBC)+
 ## Working with Multiple Rasters
 
 
-```{r landcover}
+```{r eval = FALSE}
 data("ontario_lc")
-coverkey = read.csv("data/canada_2015_land_cover/land_cover_key.csv")
+coverkey = read.csv(system.file("data-shp/land_cover_key.csv", package = "dfsspatdat"))
 
 rgb2hex <- function(r,g,b) rgb(r, g, b, maxColorValue = 255)
 coverkey$HEX = sapply(1:nrow(coverkey),function(i){
@@ -1037,7 +1037,7 @@ ontario_lc
 ```
 
 
-```{r}
+```{r eval = FALSE}
 lon=seq(-81.6,-79.8,0.1)
 box=data.frame(
   lon=c(lon,rev(lon)),
@@ -1068,7 +1068,7 @@ coveri
 ```
 
 
-```{r}
+```{r eval = FALSE}
 tm_shape(coveri)+
   tm_raster(title = "Land Cover",
     palette = levels(coveri)[[1]]$HEX,style ="cat",
@@ -1079,7 +1079,7 @@ tm_shape(coveri)+
 
 ```
 
-```{r}
+```{r eval = FALSE}
 bobo_new = raster::resample(boboli_on,coveri) %>%
   raster::crop(.,extent(boxi)) %>%
   raster::mask(.,boxi)
@@ -1095,7 +1095,7 @@ tm_shape(bobo_new)+
 ```
 
 
-```{r}
+```{r eval = FALSE}
 coveri = raster::crop(coveri,bobo_new)
 
 bobo_data = data.frame(
@@ -1117,7 +1117,7 @@ landcoverpct$code = factor(landcoverpct$x,
 ```
 
 
-```{r}
+```{r eval = FALSE}
 ggplot(data=subset(bobo_data,landcover%in%c(5:6,14:17)))+
   geom_boxplot(aes(x=landcat,y=bobo_freq))+
   theme(axis.text.x = element_text(angle=90))+

@@ -1,9 +1,6 @@
----
-title: "INSTALL BEFORE WORKSHOP"
-author: "Tyler Hampton"
-output:
-  github_document: default
----
+INSTALL BEFORE WORKSHOP
+================
+Tyler Hampton
 
 # Update RStudio and R
 
@@ -11,14 +8,27 @@ Be sure to be running the newest version of RStudio.
 
 Be sure to be running R version 4.3 or greater.
 
-[How to Update R on Windows](https://bootstrappers.umassmed.edu/bootstrappers-courses/courses/rCourse/Additional_Resources/Updating_R.html)
+[How to Update R on
+Windows](https://bootstrappers.umassmed.edu/bootstrappers-courses/courses/rCourse/Additional_Resources/Updating_R.html)
 
-[How to Update R on Mac](https://www.linkedin.com/pulse/3-methods-update-r-rstudio-windows-mac-woratana-ngarmtrakulchol/)
+[How to Update R on
+Mac](https://www.linkedin.com/pulse/3-methods-update-r-rstudio-windows-mac-woratana-ngarmtrakulchol/)
 
+# Install or Update Packages
 
-# Install or Update Packages 
-In order to equip R with functionality for gis data, we need to load or install several packages. Because this is an intermediate+ workshop, I have code written in sometimes complicated formats, but I will do my best to explain what I am doing. There are many ways to do the same thing in R. Similarly, there are many different packages in R that can handle the same types of data. We will use the pairing of the *ggplot2* and *sf* packages. We'll load several other packages we'll use. In particular, the *spData* package contains lots of open-source geospatial data that we can use! For the most current version, we need to access the github code repository for *spDataLarge*. A list of data is here: https://cran.r-project.org/web/packages/spData/spData.pdf
-```{r setup2, message=FALSE, eval = FALSE}
+In order to equip R with functionality for gis data, we need to load or
+install several packages. Because this is an intermediate+ workshop, I
+have code written in sometimes complicated formats, but I will do my
+best to explain what I am doing. There are many ways to do the same
+thing in R. Similarly, there are many different packages in R that can
+handle the same types of data. We will use the pairing of the *ggplot2*
+and *sf* packages. We’ll load several other packages we’ll use. In
+particular, the *spData* package contains lots of open-source geospatial
+data that we can use! For the most current version, we need to access
+the github code repository for *spDataLarge*. A list of data is here:
+<https://cran.r-project.org/web/packages/spData/spData.pdf>
+
+``` r
 #this is a custom function that that can load multiple packages at once
 loadpackages=function(packages){  for(p in packages){
   if(!require(p,character.only=T)){install.packages(p)}
