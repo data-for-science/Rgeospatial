@@ -1,17 +1,19 @@
 ---
 title: "Geospatial Analysis and Visualization in R"
 author: "Tyler Hampton"
-date: "September 23, 2022"
 output:
-    #github_document
-    html_document:
+  github_document:
     toc: true
     toc_depth: 3
     number_sections: false
-    theme: united
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(fig.width=5, fig.height=4, warning=FALSE, echo = TRUE)
+knitr::opts_chunk$set(
+  fig.path = "images/",
+  fig.width=5,
+  fig.height=4,
+  warning=FALSE,
+  echo = TRUE)
 ```
 
 # GIS with R Tutorial
@@ -24,8 +26,7 @@ This introduction to geospatial analysis and visualization in R will cover the f
 * Subsetting, Clipping, and Cropping Data
 * Making and Saving Maps
 
-Here's a great an open-source textbook on the topic: https://geocompr.robinlovelace.net/index.html
-I derived some of the following excercises from the book.
+For an external resource, check out the textbook ["Geocomputation with R"](https://r.geocompx.org/) by Robin Lovelace and others. I derived some of the following excercises from the book.
 
 Please work your way through the tutorial and ask any questions you may have!
 
@@ -99,26 +100,27 @@ knitr::kable(read.csv("data/GISTools.csv"))
 
 Let's get started!
 
+
+
 ## Adjust Settings, Load Packages 
-In order to equip R with functionality for gis data, we need to load or install several packages. Because this is an intermediate+ workshop, I have code written in sometimes complicated formats, but I will do my best to explain what I am doing. There are many ways to do the same thing in R. Similarly, there are many different packages in R that can handle the same types of data. We will use the pairing of the *ggplot2* and *sf* packages. We'll load several other packages we'll use. In particular, the *spData* package contains lots of open-source geospatial data that we can use! For the most current version, we need to access the github code repository for *spDataLarge*. A list of data is here: https://cran.r-project.org/web/packages/spData/spData.pdf
+In order to equip R with functionality for gis data, we need to load or install several packages. Because this is an intermediate+ workshop, I have code written in sometimes complicated formats, but I will do my best to explain what I am doing. There are many ways to do the same thing in R. Similarly, there are many different packages in R that can handle the same types of data. We will use the pairing of the *tmap* and *sf* packages. We'll load several other packages we'll use. In particular, the *spData* package contains lots of open-source geospatial data that we can use! For the most current version, we need to access the github code repository for *spDataLarge*. A list of data is here: https://cran.r-project.org/web/packages/spData/spData.pdf
 ```{r setup2,message=FALSE}
 #this is a custom function that that can load multiple packages at once
 loadpackages=function(packages){  for(p in packages){
   if(!require(p,character.only=T)){install.packages(p)}
   # IF require returns FALSE, the package is missing and will be installed
-  library(p,character.only=T,quietly=T,verbose=F)}} # next, it calls the package with library
+  library(p,character.only=T,quietly=T,verbose=F)
+  # next, it calls the package with library
+  }} 
+
 
 loadpackages(c(
-           "ggplot2", # Makes ggplots!
+           "tmap", # Thematic Map Visualization, makes maps!
+           "ggplot2", # Makes ggplots! Can also make maps
            "sf",   # "Simple Features", handles vector data
            "raster", # For working with Raster Data
-           "rgdal", # 'Geospatial' Data Abstraction Library
-                    # note: rgdal will be retired by the end of 2023
-           "tmap", # Thematic Map Visualization
-           "ggsn", # Several scale bars for maps
+           "terra", # A newer package for working with Raster data
            "ggrepel", # Labels on ggplots
-           "maptools", # Manipulating geographic data
-                      # note: maptools will be retired by the end of 2023
            "plyr", # The split-apply-combine paradigm
            "data.table", # Works with data.frames
            "dplyr", # Data manipulation
@@ -127,8 +129,17 @@ loadpackages(c(
            "spData" # Spatial Datasets
            ))
 
-if(!require("spDataLarge",character.only=T)){devtools::install_github("Nowosad/spDataLarge")}
+if(!require("dfsspatdat",character.only=T)){
+  options(timeout = 400) # Download time may approach 400 seconds
+  devtools::install_github("data-for-science/dfs_spatdat")
+}
 # devtools::install_github installs a package from its github directory
+library(dfsspatdat)
+
+if(!require("spDataLarge",character.only=T)){
+  devtools::install_github("Nowosad/spDataLarge")
+}
+library(spDataLarge)
 ```
 
 # Section 1: Working with Vector Data
@@ -168,19 +179,59 @@ plot(world$geom)
 This is closer to what we expected. Of course, we're hoping to make maps visualizing some sort of data. To get there, we need to figure out how geospatial data in R is differentiated from accompanying data (statistics, categories, names, etc.).
 
 
-## Plotting World borders with ggplot
+## Plotting World borders with tmap
 
-Instead of base plot, let's use ggplot to visualize the world shapefile. The format is similar to making any ggplot, but here our geom is *geom_sf* from the sf package. Inside, we specify world as our data.
+Instead of base plot, let's use tmap to visualize the world shapefile. 
+
+tmap is an exciting package for geospatial data visualization. The package is covered extensively in the book [*Geocomputation with R*](https://r.geocompx.org/) by Robin Lovelace and others. 
+
+The tmap style of data visualization and map making uses declarative coding: similar to using ggplot.
+
+Each object will be wrapped in a call to tm_shape(), followed by the desired geometry type (e.g., tm_borders, tm_fill, tm_polygons)
 
 ```{r plotworld}
-ggplot(data=world)+geom_sf()
+tmap_arrange(
+  tm_shape(world)+tm_borders(),
+  tm_shape(world)+tm_fill(),
+  nrow=1
+)
 ```
 
-Aesthetics (*aes*) are the same as other ggplots. We can fill by a variable if inside aes(), and values outside aes will apply to the shape.
+```{r plotworld2}
+tmap_arrange(
+  tm_shape(world)+tm_borders()+tm_fill(col="pop"),
+  tm_shape(world)+tm_borders()+tm_fill(col="pop",style="log10_pretty"),
+  nrow=1
+)
+```
+
+If you are familiar with ggplot and declaritive plotting, the formatting of aesthetics will be familiar. Call the column/variable by name in quotations to specify what is mapped to an attribute (e.g, color, fill, shape, linetype).
 
 With the pop layer as the fill aesthetic, we see a dramatic bright blue color in China and India. We can improve the scaling of this variable by showing color as the log of population. This shows a dramatic pathwork of population sizes across South America, Africa, and Asia as well. 
-```{r plotworld2}
+
+
+We can also fill the color with a categorical value like region.
+```{r tmapworld3}
+tm_shape(world)+tm_fill(col="region_un")
+```
+
+Earlier, we commented how this geospatial data object behaved a bit like a dataframe. We can in fact operate on this object with many functions we often use with dataframes!
+
+For example, we can *subset* the world dataset to plot only the boundary of Canada. Think earlier when we discussed geospatial operations. We can create a new object called Canada. We've reduced the amount of information and spatial extent relative to the world object: we no longer have information about any countries besides Canada. But, we've kept the information type the same: it's still a polygon.
+```{r tmapCanada}
+tm_shape(shp=subset(world,name_long=="Canada"))+tm_borders()
+Canada = subset(world,name_long=="Canada")
+head(Canada)
+```
+
+## Plotting World borders with ggplot2
+
+With spatial objects, aesthetics (*aes*) are set the same as in other ggplots. We can fill by a variable if inside aes(), and values outside aes will apply to the shape.
+
+```{r ggplotworld}
 ggplot(data=world,aes(fill=pop))+geom_sf() # alter shape fill by population
+ggplot(data=subset(world,name_long=="Canada"))+geom_sf(color=2)
+ggplot(data=world,aes(fill=region_un))+geom_sf()
 ggplot(data=world,aes(fill=log10(pop)))+ # alter shape fill by log10 of population
   geom_sf()+
   scale_fill_gradientn(
@@ -192,31 +243,6 @@ ggplot(data=world,aes(fill=log10(pop)))+ # alter shape fill by log10 of populati
   )
 ```
 
-We can also fill the color with a categorical value like region.
-```{r plotworld3}
-ggplot(data=world,aes(fill=region_un))+geom_sf()
-```
-
-Earlier, we commented how this geospatial data object behaved a bit like a dataframe. We can in fact operate on this object with many functions we often use with dataframes!
-
-For example, we can *subset* the world dataset to plot only the boundary of Canada. Think earlier when we discussed geospatial operations. We can create a new object called Canada. We've reduced the amount of information and spatial extent relative to the world object: we no longer have information about any countries besides Canada. But, we've kept the information type the same: it's still a polygon.
-```{r plotworld4}
-ggplot(data=subset(world,name_long=="Canada"))+geom_sf(color=2)
-Canada = subset(world,name_long=="Canada")
-head(Canada)
-```
-
-## Plotting World borders with tmap
-
-tmap is an exciting package for geospatial data visualization. The package is covered extensively in the book *Geocomputation with R* by Robin Lovelace and others. Throughout this workshop, maybe try to apply examples in the tmap format!
-
-```{r tmap}
-library(tmap)
-tm_shape(world)+tm_borders()
-tm_shape(world)+tm_borders()+tm_fill(col="pop")
-tm_shape(world)+tm_fill(col="region_un")
-tm_shape(shp=subset(world,name_long=="Canada"))+tm_borders()
-```
 
 Challenge: create the following plots:
 
@@ -226,6 +252,63 @@ Did I subset by a particular region, or just a group of countries?
 tm_shape(shp=subset(world,name_long%in%c("Canada","United States","Mexico")))+tm_borders()
 tm_shape(shp=subset(world,subregion=="Eastern Asia"))+tm_fill(col="gray")+tm_borders(lwd=2)
 ```
+
+## Beneath the Trunk: Vector Shapes from Scratch
+
+```{r circle-wat}
+point.wat= data.frame(
+    lon=-80.516670,
+    lat=43.466667
+    ) %>%
+  sf::st_as_sf(.,coords=names(.),crs = 4326)
+
+circle.wat = data.frame(angle = seq(0,360,1))
+radius = 0.1 #decimal degrees
+
+circle.wat$lon = radius*cos(2*pi*circle.wat$angle/360) +
+  st_coordinates(point.wat)[,"X"]
+circle.wat$lat = radius*sin(2*pi*circle.wat$angle/360) +
+  st_coordinates(point.wat)[,"Y"]
+circle.wat = subset(circle.wat,select=-c(angle))
+
+circle.wat = circle.wat %>% 
+  as.matrix() %>%
+  list() %>%
+  st_polygon() %>%
+  st_sfc() %>%
+  st_sf(., crs = 4326)
+
+tm_shape(circle.wat)+
+  tm_borders()+
+  tm_shape(point.wat)+
+  tm_dots(size=0.1)
+```
+
+```{r circle-wat-osm}
+#library(OpenStreetMap)
+osmtiles <- tmaptools::read_osm(
+  tmaptools::bb(circle.wat), type="osm")
+tm_shape(osmtiles)+
+  tm_rgb(saturation = 0)+
+  tm_shape(circle.wat)+
+  tm_borders()+
+  tm_shape(point.wat)+
+  tm_dots(size=0.1)
+```
+
+
+```{r}
+circlefx = function(center,radius){
+  circle = data.frame(angle = seq(0,360,1))
+  circle$lon = radius*cos(2*pi*circle$angle/360) + st_coordinates(center)[,"X"]
+  circle$lat = radius*sin(2*pi*circle$angle/360) + st_coordinates(center)[,"Y"]
+  circle = subset(circle,select=-c(angle))
+  circle = circle %>% as.matrix() %>% list() %>%
+    st_polygon() %>% st_sfc() %>% st_sf(., crs = 4326)
+  return(circle)
+}
+```
+
 
 # Section 2: Reviewing Map and Shape Projections
 
@@ -246,23 +329,25 @@ projMollweide="+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
 projRobinson="+proj=robin +lon_0=0 +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m +no_defs"
 projGallPeters="+proj=cea +lon_0=0 +lat_ts=45 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
 
-lapply(1:3,function(X){ # sequence through 3 operations
-  ggplot()+
-    geom_sf(
-      data=st_transform(world,
-      list( # feed a list of length 3 to st_transform
-      projMollweide, 
-      projRobinson,
-      projGallPeters
-      )[[X]] # use X to sequence through the 3 projections
-    ))+
-    ggtitle(
-      c("Mollweide",
-        "Robinson Sphere",
-        "Gall-Peters Orthographic")[X] 
-      # use X to sequence through 3 titles
-    )
-})
+
+tmap_arrange(
+  tm_shape(
+      world,
+      crs =projMollweide)+
+    tm_borders()+
+    tm_layout(title = "Mollweide"),
+  tm_shape(
+      world,
+      crs =projRobinson)+
+    tm_borders()+
+    tm_layout(title = "Robinson Sphere"),
+  tm_shape(
+      world,
+      crs =projGallPeters)+
+    tm_borders()+
+    tm_layout(title = "Gall-Peters Orthographic"),
+  nrow=1
+)
 ```
 
 ## Reproject Canada
@@ -277,32 +362,309 @@ Proj_AEA_Can=c("+proj=aea +lat_1=50 +lat_2=70 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0
 CanadaAEA=world%>%
   subset(.,name_long=="Canada")%>%
   st_transform(.,Proj_AEA_Can)
+tm_shape(CanadaAEA)+
+  tm_borders()
+```
+
+# Section 3: Geospatial Operations
+
+Let's review the geospatial operations discussed at the beginning of our workshop.
+
+```{r show table,echo=FALSE,results="asis"}
+knitr::kable(read.csv("Lectures_and_Slides/images/GISTools.csv"))
+```
+
+We jumped right in and starting doing subsets, partly because we saw that vector shapefiles in R behave and can be manipulated similarly to data frames. The other operations mostly have functions that come from the geospatial packages (e.g. sf, raster, terra, stars). 
+
+## Operations: Merge, Union, Dissolve, Intersect
+
+```{r circles}
+point.wat= data.frame(lon=-80.516670, lat=43.466667) %>% 
+  sf::st_as_sf(.,coords=names(.),crs = 4326)
+circle.wat = circlefx(point.wat,0.3)
+
+point.glp= data.frame(lon=-80.250000, lat=43.549999) %>% 
+  sf::st_as_sf(.,coords=names(.),crs = 4326)
+circle.glp = circlefx(point.glp,0.3)
+
+tm_shape(circle.wat)+
+  tm_borders()+
+  tm_shape(circle.glp)+
+  tm_borders()
+
+# personally, I like that ggplots default to a map-view to encompass ALL polygons
+# tmap defaults to a map view to encompass the first polygon
 ggplot()+
-  geom_sf(data=CanadaAEA)
+  geom_sf(data=circle.wat,fill="transparent")+
+  geom_sf(data=circle.glp,fill="transparent")
 ```
 
-# Section 3: Map Aesthetics
+### Merge
 
-Let's add a few map elements inherited from the *ggsn* package. These are completely compatible with ggplot. We'll  add a north arrow and scale bar, and we can get rid of the grid lines with blank(). If you wanted the axes and coordinates, you can adjust the parameters of theme().
+We see with merge that the two shapes just become grouped into one new object. We can imagine if these shapes had attributes, that to "rbind" them as we would data frames, they must have the same structure of columns and names.
 
-```{r mapelements}
-map=ggplot()+
-  geom_sf(data=CanadaAEA)+
-  ggsn::north(CanadaAEA,symbol = 3,scale=0.2)+ # North arrow
-  ggsn::scalebar(CanadaAEA, # Scale Bar
-           dist = 1000, dist_unit = "km", # size of bar on map
-           transform = FALSE,
-           location = "bottomleft", # position
-           st.size = 3 # text size
-           )+
-  ggtitle("Map of Canada")
-map+ggsn::blank()  # white background
-map+theme(panel.background=element_rect(fill=0,color=1), # fill=white, black outline
-          axis.title=element_blank(), # no axis titles
-          panel.grid=element_line(color="light gray")) # gray grid lines
+```{r circle-merge}
+circle.mrg = rbind(
+  circle.wat,
+  circle.glp
+)
+
+dim(circle.mrg)
+circle.mrg
+
+ggplot()+geom_sf(data=circle.mrg,fill="transparent")
 ```
 
-Let's try this with *tmap* as well.
+### Union
+
+Confusingly, the function for a traditional "union" is st_combine, not st_union. We see by passing the merged shape to st_combine, the output is a single MULTIPOLYGON with preserved internal boundaries.
+
+```{r circle-union}
+circle.un = sf::st_combine(
+  circle.mrg
+)
+
+dim(circle.un)
+circle.un
+
+ggplot()+geom_sf(data=circle.un,fill="transparent")
+```
+
+### Dissolve
+
+Confusingly, the function for a traditional "dissolve" is st_union. We see by passing the merged shape to st_union., the output is a single MULTIPOLYGON with dissolved internal boundaries.
+
+```{r circle-dissolve}
+circle.dis = sf::st_union(
+  circle.mrg
+)
+
+dim(circle.dis)
+circle.dis
+
+ggplot()+geom_sf(data=circle.dis,fill="transparent")
+```
+
+### Intersection
+
+Confusingly, the function for a traditional "dissolve" is st_union. We see by passing the merged shape to st_union., the output is a single MULTIPOLYGON with dissolved internal boundaries.
+
+```{r circle-intersection}
+circle.int = sf::st_intersection(
+  circle.wat,
+  circle.glp
+)
+
+dim(circle.int)
+circle.int
+
+ggplot()+
+  geom_sf(data=circle.dis,lty=2,col="red")+
+  geom_sf(data=circle.int,lwd=2,col=1,fill="transparent")
+```
+
+## Operation: Intersection
+
+Let's examine some new data, and learn a few more operations
+
+```{r worldcities}
+data("worldcities")
+
+head(worldcities)
+```
+In the dfsspatdat package, the world cities point shapefile has lots of useful information associated with each city, but imagine we started out without knowing any of the countries the cities were in. Given only the coordinates of the cities, we could perform an intersect with the world object to retrieve the countries!
+
+```{r intersection}
+capitals_lost = subset(worldcities,
+                          featurecla == "Admin-0 capital",
+                          select=c(nameascii,geometry))
+
+# test for same projection!
+sf::st_crs(capitals_lost) == sf::st_crs(world)
+
+# an intersection can be performed with st_intersection()
+capitals_lost = sf::st_intersection(
+  capitals_lost,
+  subset(world,select=c(name_long,geom))
+  )
+
+head(capitals_lost)
+```
+
+## Operation: Dissolve
+
+So refering back to our map of Canada earlier, I become very picky about the weird border down the middle of the Great Lakes. I like my maps to represent the landmass of Canada! 
+
+```{r can_pretty}
+data("can_prov",package="dfsspatdat")
+
+head(can_prov)
+can_prov$Country = "Canada"
+
+#can_pretty = dplyr::summarise(can_prov)
+can_pretty = can_prov |>
+  dplyr::group_by(Country) |>
+  dplyr::summarise()
+
+head(can_pretty)
+
+can_pretty = can_pretty |>
+  sf::st_simplify(
+  preserveTopology = TRUE,
+  dTolerance = 500)
+
+tmap_arrange(
+  tm_shape(can_prov)+tm_borders(),
+  tm_shape(can_pretty)+tm_borders(),
+  nrow=1
+)
+```
+
+There isn't a meaningful difference in run-time to perform a dissolve.
+
+```{r, eval = FALSE}
+system.time({
+  can_pretty = sf::st_union(can_prov)
+})
+# Workstation Computer
+#   user   system elapsed 
+#   18.42  1.44   30.31 
+# Laptop
+#   user   system elapsed 
+#   48.41  1.46   148.17 
+system.time({
+  can_pretty = dplyr::summarise(can_prov)
+})
+# Workstation Computer
+#   user   system elapsed 
+#   17.55  0.70   32.11 
+# Laptop
+#   user   system elapsed 
+#   47.97  1.86   149.20
+```
+
+
+## Operation: Join
+
+
+Despite the new object can_pretty seeming pretty devoid of information, there are lots of different geometries present. We know Canada has lots of islands, so they must be wrapped up inside the MULTIPOLYGON. We can get them out, if we wanted!
+
+```{r}
+can_singles = sf::st_cast(can_pretty,"POLYGON")
+
+nrow(can_singles)
+
+head(can_singles)
+```
+
+How might we know which is which? Which islands are part of which provinces?
+
+```{r}
+can_singles$Index = seq_len(nrow(can_singles))
+can_single_centroids = sf::st_centroid(can_singles)
+can_single_centroids = sf::st_intersection(
+  can_single_centroids,
+  subset(can_prov,select=c("PRENAME","geometry")))
+
+can_singles = dplyr::left_join(
+  can_singles,
+  st_drop_geometry(can_single_centroids),
+  by = join_by("Country","Index")
+  )
+
+table(can_singles$PRENAME)
+```
+
+Was this successful?
+
+```{r islands_provinces}
+tm_shape(can_singles)+
+  tm_fill(col = "PRENAME")
+```
+How else might we identify very prominent islands in Canada?
+
+```{r}
+can_cities = subset(worldcities,sov0name=="Canada")
+sf::st_crs(can_cities) == sf::st_crs(can_singles)
+can_cities = sf::st_transform(can_cities,sf::st_crs(can_singles))
+
+can_cities = sf::st_intersection(
+  subset(can_cities,select=c(nameascii,featurecla,adm1name,geometry)),
+  subset(can_singles,select=-c(PRENAME))
+)
+
+can_singles = dplyr::right_join(
+  can_singles,
+  sf::st_drop_geometry(can_cities),
+  by = join_by("Country","Index")
+)
+
+```
+
+
+```{r some_islands}
+tmap_arrange(
+  tm_shape(subset(can_singles,nameascii=="Victoria"))+
+    tm_borders()+
+    tm_shape(subset(can_cities,nameascii=="Victoria"))+
+    tm_dots(size = 1)+
+    tm_layout(title="Victoria, British Columbia"),
+  tm_shape(subset(can_singles,nameascii=="St. John's"))+
+    tm_borders()+
+    tm_shape(subset(can_cities,nameascii=="St. John's"))+
+    tm_dots(size = 1)+
+    tm_layout(title="St. John's, Newfoundland"),
+  tm_shape(subset(can_singles,nameascii=="Charlottetown"))+
+    tm_borders()+
+    tm_shape(subset(can_cities,nameascii=="Charlottetown"))+
+    tm_dots(size = 1)+
+    tm_layout(title="Charlottetown, PEI"),
+  nrow=1
+)
+```
+
+
+## Operation: Buffer
+
+How many cities are within 200 kilometers of Toronto?
+
+```{r}
+can_cities = subset(worldcities,sov0name=="Canada",
+                     select=c(nameascii,featurecla,adm1name,pop_max,geometry))
+can_cities = sf::st_transform(can_cities,Proj_AEA_Can)
+
+# Brutal burn for Waterloo :(
+"Waterloo" %in% can_cities$nameascii
+
+toronto_buf = subset(can_cities,nameascii=="Toronto") |>
+  sf::st_buffer(dist=150000) |>
+  sf::st_geometry()
+
+to_cities = sf::st_intersection(
+  can_cities,
+  toronto_buf
+)
+
+```
+
+```{r toronto_area}
+data("can_prov",package="dfsspatdat")
+Ontario = subset(can_prov,PRENAME=="Ontario") |>
+  sf::st_transform(crs = Proj_AEA_Can)
+
+tm_shape(to_cities)+
+  tm_dots(size=0.2)+
+  tm_text(text="nameascii",ymod=0.5,size=0.8)+
+  tm_shape(Ontario)+
+  tm_borders()+
+  tm_shape(toronto_buf,is.master=TRUE)+
+  tm_borders(lty="dashed")
+```
+
+# Section 4: Map Aesthetics
+
+Let's add a few map elements inherited from the *tmap* package. We'll  add a north arrow and scale bar, and we can get rid of the grid lines. If you wanted the axes and coordinates, you can adjust the parameters of tm_layout().
+
 
 ```{r tmapelements}
 map=tm_shape(CanadaAEA)+tm_polygons()+
@@ -318,7 +680,12 @@ map+tm_layout(frame=TRUE)+tm_grid(projection = "+proj=longlat")
 *spData* comes with data on where our coffee comes from! Use *left_join* from *dplyr* to add this data to world. Use the Robinson Sphere to accentuate the equatorial belt. We'll use the *st_centroid* function nested within *st_coordinates* and *cbind* to add X and Y coordinates to draw labels. We may only want labels for the top coffee contributing countries, so we can use subset.
 
 ```{r coffeemap}
+data("coffee_data")
 head(coffee_data)
+
+  # spData tells us production is in units of thousands of 60 kg bags produced by country
+  # multiple by 60kg/bag to get kg and divide by 10^3 to get metric tons
+coffee_data$coffee_MT_2017 = coffee_data$coffee_production_2017*60/1000
 
 world_coffee=world%>% 
   subset(.,select=c(name_long)) %>% 
@@ -329,11 +696,11 @@ world_coffee=world%>%
                ) %>% 
   cbind(.,st_coordinates(st_centroid(.))) # add coordinates of centroids to data
 
-  
+tm_shape(world_coffee)+
+  tm_fill(col="coffee_MT_2017")
+
 ggplot()+
-  geom_sf(data=world_coffee,aes(fill=coffee_production_2017*60/1000))+
-  # spData tells us production is in units of thousands of 60 kg bags produced by country
-  # multiple by 60kg/bag to get kg and divide by 10^3 to get metric tons
+  geom_sf(data=world_coffee,aes(fill=coffee_MT_2017))+
   geom_label_repel( # label the countries
     data=subset(world_coffee,coffee_production_2017>500), # take top coffee producers
     aes(x=X,y=Y,label=name_long), # label aesthetics
@@ -354,14 +721,14 @@ ggplot()+
 
 Think about what geospatial operation happened here. We took the world data, and added information that wasn't there before! So we increased the amount of information, but kept data for all the countries, even though only some can produce coffee. In many cases with *joins*, you have one geospatial object being joined with new information in a tabular format. There are cases where you will join information from two or more sets of geospatial objects, but this can quickly become chaotic. 
 
-# Section 4. Working with Raster Data
+# Section 5. Working with Raster Data
 ## Raster Data Format
 
 The eBird project has multiple data products that can be used for academic research or hobby science. I have down-sized some data from the Status and Trends dataset for two bird species: the Eastern Bluebird and the Bobolink. Use the *raster* function to read in a raster. These data are for occurrence frequency on an annual scale.  
 
 ```{r ebird1}
-blue = raster("data/EBirdData/easblu_occur_year_Ontario.grd")
-bobo = raster("data/EBirdData/boboli_occur_year_Ontario.grd")
+data("easblu_on",package = "dfsspatdat")
+data("boboli_on",package = "dfsspatdat")
 ```
 
 There are many many different types of raster file formats. The raster package is wonderful in that it can read in almost all of them. (Read more information on raster files)[https://pro.arcgis.com/en/pro-app/latest/help/data/imagery/supported-raster-dataset-file-formats.htm]. 
@@ -369,7 +736,7 @@ There are many many different types of raster file formats. The raster package i
 Like we did when we first started examining the world shape, let's just call our raster object to see its description:
 
 ```{r ebird2}
-blue
+easblu_on
 ```
 
 There's useful information here: we see that there are 770 thousand data points in this raster. The crs of the data is pre-defined, and we can see it is the Canada Albers Equal Area Conic Projection, with units of metres. 
@@ -379,9 +746,11 @@ There's useful information here: we see that there are 770 thousand data points 
 We can use the basic plot function to try to examine the data. With basic plot, we can add the Ontario border.
 
 ```{r ebird3}
-Ontario = st_read("data/CanadaCensusShapes/Canada_provinces_Ontario.shp")
+data("can_prov",package="dfsspatdat")
+Ontario = subset(can_prov,PRENAME=="Ontario")
+Ontario = sf::st_transform(Ontario,sf::st_crs(easblu_on))
 
-plot(blue,xlim=c(800000,1800000),ylim=c(260000,900000))
+plot(easblu_on,xlim=c(800000,1800000),ylim=c(260000,900000))
 plot(Ontario$geometry,add=TRUE,main="Eastern Bluebird\nAnnual Frequency")
 ```
 
@@ -399,15 +768,16 @@ A note about layering objects with tmap:
 * In tmap, each object addition needs two sequential lines: first, a call of tm_shape() listing the object, and then a mapping function (e.g. tm_raster, tm_borders, tm_polygons) that corresponds with the object type.
 
 ```{r raster + vector plot}
-sOntbbox = tmaptools::bb(matrix(c(
-  800000, #xmin
-  260000, #ymin
-  1800000,#xmax
-  900000  #ymax
-  ),2,2))
-# st_as_sf(st_as_sfc(sOntbbox))
+sOntbbox = tmaptools::bb(
+  sf::st_bbox(c(
+  xmin = 800000,
+  xmax = 1800000,
+  ymin = 260000,
+  ymax = 900000
+  ),crs = sf::st_crs(easblu_on))
+)
 
-tm_shape(blue,bbox=sOntbbox)+
+tm_shape(easblu_on,is.main = TRUE,bbox=sOntbbox)+
   tm_raster(palette = "Spectral",title = "Annual Frequency")+
   tm_shape(Ontario)+
   tm_borders()+
@@ -419,14 +789,11 @@ tm_shape(blue,bbox=sOntbbox)+
 
 
 ```{r ebird Bobolink}
-bobo_freq <- rasterToContour(bobo,maxpixels = 10000,nlevels=4)
+bobo_freq <- rasterToContour(boboli_on,maxpixels = 10000,nlevels=4)
 class(bobo_freq)
 
-tm_shape(bobo,bbox=sOntbbox)+
+tm_shape(boboli_on,bbox=sOntbbox)+
   tm_raster(palette = "Spectral",title = "Annual Frequency")+
-  tm_shape(bobo_freq)+
-  #tm_lines()+
-  tm_iso()+
   tm_shape(Ontario)+
   tm_borders()+
   tm_layout(legend.position = c("right","center"),
@@ -438,16 +805,21 @@ tm_shape(bobo,bbox=sOntbbox)+
 Here's a fun excercise: map the Flag of Canada in the shape of the country. Earlier we discussed raster formats. If you think about it, common file types you interact with every day (e.g. png, jpeg) are actually rasters!
 
 ```{r flag1}
-CAFlag1 = raster("data/Flag of Canada.png")
+CAFlag1 = raster(
+  system.file("data-shp/CanadaFlag.png", package = "dfsspatdat")
+)
 CAFlag1
 plot(CAFlag1)
 ```
+
 Ok, so we didn't get anything inteligible from our plot. But the description of this raster object CAFlag1 gives us some clues: there is a range of values from 0 to 255, which is the maximum intensity of a pixel in a png file. The description also tells us there are multiple bands in this png file. If you know how computer images and screens work, you might guess that the different bands map onto the Red Green Blue (RGB) colors in the file.
 
 Since there are multiple bands, we can instead use raster::stack to read in the data. 
 
 ```{r flag2}
-CAFlag=raster::stack("data/Flag of Canada.png")
+CAFlag=raster::stack(
+  system.file("data-shp/CanadaFlag.png", package = "dfsspatdat")
+)
 names(CAFlag)
 # A portable network graphic (PNG) file stores image color in four bands, and we see 
 #    that each band has 600 by 1200 cells
@@ -475,13 +847,13 @@ extent(CAFlag)<-extent(Canada)
 crs(CAFlag)<-st_crs(Canada)$proj4string
 # set coordinates for our CAFlag image the same as our geospatial data
 
-tm_shape(CAFlag$Flag_of_Canada.2)+
-  tm_raster(col="Flag_of_Canada.2",palette=c("red","white"))+
+tm_shape(CAFlag$CanadaFlag_2,is.main = TRUE)+
+  tm_raster(col="CanadaFlag_2",palette = c("red","white"))+
   #     fill the raster by the value of the green band, 
   #     but specify the end color values of red and white
   tm_layout(bg.color = "gray",legend.show = F)+
   tm_shape(Canada)+
-  tm_borders(col=1)
+  tm_borders()
 
 ```
 
@@ -492,13 +864,13 @@ Maybe we have a dataset at a larger scale than our area of interest. Or maybe we
 ```{r flag mask}
 CAFlagM=raster::mask(CAFlag,Canada) # we will mask out the parts of our image outside Canada
 
-tm_shape(CAFlagM$Flag_of_Canada.2)+
-  tm_raster(col="Flag_of_Canada.2",palette=c("red","white"))+
+tm_shape(CAFlagM$CanadaFlag_2)+
+  tm_raster(col="CanadaFlag_2",palette=c("red","white"))+
   #     fill the raster by the value of the green band, 
   #     but specify the end color values of red and white
   tm_layout(bg.color = "gray",legend.show = F)+
   tm_shape(Canada)+
-  tm_borders(col=1)
+  tm_borders()
 ```
 
 These last graphs might have you thinking in the back of your head that this isn't the shape you're used to seeing for Canada. This is the effect of map projection. The last plot is shown using the Mercator projection, using longitude and latitude as coordinates.
@@ -508,11 +880,10 @@ These last graphs might have you thinking in the back of your head that this isn
 Let's revisit our flag, and see how changing the projection of our shapefile has changed several previously linear features. We'll use *projectRaster* to use our original raster and *transform* or *project* the data to a new CRS. Remember, an important principal of working with GIS data is that all data you're working with are in the same CRS when analyzing and plotting.
 
 ```{r flag project}
-CAFlagM2=CAFlagM %>% projectRaster(crs=st_crs(CanadaAEA)$proj4string)
-tm_shape(CAFlagM2$Flag_of_Canada.2)+
-  tm_raster(col="Flag_of_Canada.2",palette=c("red","white"))+
+tm_shape(CAFlagM$CanadaFlag_2,is.master = TRUE,projection = Proj_AEA_Can)+
+  tm_raster(col="CanadaFlag_2",palette=c("red","white"))+
   tm_layout(bg.color = "gray",legend.show = F)+
-  tm_shape(CanadaAEA)+tm_borders(col=1)
+  tm_shape(Canada)+tm_borders()
 ```
 
 ## More Raster Practice: Multiband Imagery
@@ -603,32 +974,32 @@ Raster data for Canadian biomass
 
 http://ftp.maps.canada.ca/pub/nrcan_rncan/Forests_Foret/canada-forests-attributes_attributs-forests-canada/2011-attributes_attributs-2011/
 ```{r forestdata}
-Provinces = st_read("data/CanadaCensusShapes/Canada_provinces.shp")
+biomass = raster(system.file("data-shp/biomassveg_canada.tif", package = "dfsspatdat"))
 
-forest=raster("data/BiomassAG2.tif") %>% 
-  raster::projectRaster(.,crs = st_crs(Provinces)$proj4string)
+data("can_prov")
+can_prov = sf::st_transform(can_prov,sf::st_crs(biomass))
 
-plot(forest,main="Aboveground Biomass")
+
+plot(biomass,main="Aboveground Biomass (Mg C/ha)")
 ```
-```{r forestdata2}
-tm_shape(forest)+
+```{r biomassdata2}
+tm_shape(biomass)+
   tm_raster(palette=c("beige","darkgreen"),title=expression("(Mg C "*ha^-1*")"))+
   tm_layout(main.title = "Aboveground Biomass",legend.position = c("right","top"))+
-  tm_shape(shp = Provinces)+
-  tm_borders(col=1)
+  tm_shape(shp = can_prov)+
+  tm_borders()
 ```
 
-```{r forestdata3}
-provBC=Provinces%>%
-  subset(.,Pr_____=="British Columbia")%>%
-  st_transform(.,proj4string(forest))
-forestBC=forest%>%
+```{r biomassdata3}
+provBC=can_prov%>%
+  subset(.,PRENAME=="British Columbia")
+biomassBC=biomass%>%
   raster::sampleRegular(.,500000,asRaster=TRUE)%>%
   raster::crop(.,extent(provBC))%>%
   raster::mask(.,provBC)
-cellsize=res(forestBC)
+cellsize=res(biomassBC)
 
-tm_shape(forestBC)+
+tm_shape(biomassBC)+
   tm_raster(palette=c("beige","darkgreen"),title=expression("(Mg C "*ha^-1*")"))+
   tm_layout(main.title = "British Columbia",
             title = "Aboveground Biomass",
@@ -636,19 +1007,19 @@ tm_shape(forestBC)+
             legend.outside.position = "right"
             )+
   tm_shape(shp = provBC)+
-  tm_borders(col=1)
+  tm_borders()
 
 ```
 
 
-```{r forestdata4}
-(sum(getValues(forestBC$BiomassAG2),na.rm=T)*
+```{r biomassdata4}
+(sum(getValues(biomassBC$biomassveg_canada),na.rm=T)*
     cellsize[1]*cellsize[2]* # cell dimentions in m
     (100^-2)* # m2 to ha
     10^6* # Mg to g
     10^-15 # g to Pg
   )%>%round(.,2)%>%
-  paste0(.," petagrams (billion tons) of carbon in BC forests")
+  paste0(.," petagrams (billion tons) of carbon in BC biomasss")
 ```
 
 
@@ -656,13 +1027,13 @@ tm_shape(forestBC)+
 
 
 ```{r landcover}
-cover = raster("data/canada_2015_land_cover/CAN_NALCMS_2015_v2_land_cover_100m/landcover_SouthernOntario.tif")
+data("ontario_lc")
 coverkey = read.csv("data/canada_2015_land_cover/land_cover_key.csv")
 
 rgb2hex <- function(r,g,b) rgb(r, g, b, maxColorValue = 255)
 coverkey$HEX = sapply(1:nrow(coverkey),function(i){
   rgb2hex(coverkey$Red[i],coverkey$Green[i],coverkey$Blue[i])})
-cover
+ontario_lc
 ```
 
 
@@ -679,12 +1050,12 @@ box=data.frame(
   st_sf(., crs = 4326)%>%
   st_transform(.,Proj_AEA_Can)
 
-boxi = box %>% st_transform(st_crs(cover)$proj4string)
-coveri = cover %>%
+boxi = box %>% st_transform(st_crs(ontario_lc)$proj4string)
+coveri = ontario_lc %>%
   raster::crop(.,extent(boxi)) %>%
   raster::mask(.,boxi) %>%
-  raster::projectRaster(.,crs = st_crs(bobo)$proj4string,method="ngb")
-boxi = box %>% st_transform(st_crs(bobo)$proj4string)
+  raster::projectRaster(.,crs = st_crs(boboli_on)$proj4string,method="ngb")
+boxi = box %>% st_transform(st_crs(boboli_on)$proj4string)
 
 raster::is.factor(coveri)
 coveri = raster::as.factor(coveri)
@@ -707,8 +1078,9 @@ tm_shape(coveri)+
             legend.outside.position = "right")
 
 ```
+
 ```{r}
-bobo_new = raster::resample(bobo,coveri) %>%
+bobo_new = raster::resample(boboli_on,coveri) %>%
   raster::crop(.,extent(boxi)) %>%
   raster::mask(.,boxi)
 
